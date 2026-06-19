@@ -108,3 +108,20 @@ func isEpayWebhookConfigured() bool {
 func isEpayWebhookEnabled() bool {
 	return isEpayTopUpEnabled()
 }
+
+func isAlipayF2FTopUpEnabled() bool {
+	if !isPaymentComplianceConfirmed() {
+		return false
+	}
+	return isAlipayF2FWebhookConfigured()
+}
+
+func isAlipayF2FWebhookConfigured() bool {
+	return strings.TrimSpace(operation_setting.AlipayF2FAppId) != "" &&
+		strings.TrimSpace(operation_setting.AlipayF2FAlipayPublicKey) != "" &&
+		strings.TrimSpace(operation_setting.AlipayF2FAppPrivateKey) != ""
+}
+
+func isAlipayF2FWebhookEnabled() bool {
+	return isAlipayF2FTopUpEnabled()
+}

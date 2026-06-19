@@ -56,6 +56,14 @@ const PAYMENT_TEMPLATES = [
     },
   },
   {
+    name: 'Alipay F2F',
+    template: {
+      color: 'rgba(var(--semi-blue-5), 1)',
+      name: '支付宝当面付',
+      type: 'alipay_f2f',
+    },
+  },
+  {
     name: 'WeChat Pay',
     template: {
       color: 'rgba(var(--semi-green-5), 1)',

@@ -75,6 +75,9 @@ func SetApiRouter(router *gin.Engine) {
 			userRoute.GET("/logout", controller.Logout)
 			userRoute.POST("/epay/notify", anonymousRequestBodyLimit, controller.EpayNotify)
 			userRoute.GET("/epay/notify", controller.EpayNotify)
+			userRoute.POST("/alipay-f2f/notify", anonymousRequestBodyLimit, controller.AlipayF2FNotify)
+			userRoute.POST("/alipay-f2f/checkout", anonymousRequestBodyLimit, controller.AlipayF2FCheckout)
+			userRoute.GET("/alipay-f2f/status/:trade_no", controller.AlipayF2FStatus)
 			userRoute.GET("/groups", controller.GetUserGroups)
 
 			selfRoute := userRoute.Group("/")
