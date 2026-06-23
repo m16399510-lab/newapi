@@ -128,7 +128,7 @@ export function CheckinSettingsSection({
                   <FormLabel>{t('Enable check-in feature')}</FormLabel>
                   <FormDescription>
                     {t(
-                      'Allow users to check in daily for random quota rewards'
+                      "Allow users to check in after yesterday's usage reaches the threshold"
                     )}
                   </FormDescription>
                 </SettingsSwitchContent>
@@ -160,7 +160,9 @@ export function CheckinSettingsSection({
                       />
                     </FormControl>
                     <FormDescription>
-                      {t('Minimum quota amount awarded for check-in')}
+                      {t(
+                        "Minimum reward amount. Yesterday's usage must be at least 10 times this value."
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

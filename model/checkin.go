@@ -2,10 +2,10 @@ package model
 
 import (
 	"errors"
-	"math/rand"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"gorm.io/gorm"
 )
@@ -49,6 +49,50 @@ func HasCheckedInToday(userId int) (bool, error) {
 	return count > 0, err
 }
 
+func yesterdayQuotaRange() (int64, int64) {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	yesterday := today.AddDate(0, 0, -1)
+	return yesterday.Unix(), today.Unix()
+}
+
+func GetUserConsumedQuotaBetween(userId int, startTimestamp int64, endTimestamp int64) (int, error) {
+	var total int64
+	err := LOG_DB.Table("logs").
+		Select("COALESCE(SUM(quota), 0)").
+		Where("user_id = ? AND type = ? AND created_at >= ? AND created_at < ?", userId, LogTypeConsume, startTimestamp, endTimestamp).
+		Scan(&total).Error
+	return int(total), err
+}
+
+func calculateUsageBasedCheckinQuota(userId int, minQuota int, maxQuota int) (int, error) {
+	if minQuota <= 0 {
+		return 0, errors.New("签到最低额度必须大于0")
+	}
+	if maxQuota < minQuota {
+		maxQuota = minQuota
+	}
+
+	requiredQuota := minQuota * 10
+	startTimestamp, endTimestamp := yesterdayQuotaRange()
+	yesterdayUsedQuota, err := GetUserConsumedQuotaBetween(userId, startTimestamp, endTimestamp)
+	if err != nil {
+		return 0, err
+	}
+	if yesterdayUsedQuota < requiredQuota {
+		return 0, errors.New("昨日用量不足，需至少消费 " + logger.LogQuota(requiredQuota) + " 才可签到")
+	}
+
+	quotaAwarded := yesterdayUsedQuota / 10
+	if quotaAwarded < minQuota {
+		quotaAwarded = minQuota
+	}
+	if quotaAwarded > maxQuota {
+		quotaAwarded = maxQuota
+	}
+	return quotaAwarded, nil
+}
+
 // UserCheckin 执行用户签到
 // MySQL 和 PostgreSQL 使用事务保证原子性
 // SQLite 不支持嵌套事务，使用顺序操作 + 手动回滚
@@ -67,10 +111,10 @@ func UserCheckin(userId int) (*Checkin, error) {
 		return nil, errors.New("今日已签到")
 	}
 
-	// 计算随机额度奖励
-	quotaAwarded := setting.MinQuota
-	if setting.MaxQuota > setting.MinQuota {
-		quotaAwarded = setting.MinQuota + rand.Intn(setting.MaxQuota-setting.MinQuota+1)
+	// 按昨日实际用量计算签到奖励
+	quotaAwarded, err := calculateUsageBasedCheckinQuota(userId, setting.MinQuota, setting.MaxQuota)
+	if err != nil {
+		return nil, err
 	}
 
 	today := time.Now().Format("2006-01-02")
