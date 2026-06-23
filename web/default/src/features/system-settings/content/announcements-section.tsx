@@ -276,12 +276,14 @@ export function AnnouncementsSection({
 
   const handleSaveAll = async () => {
     try {
-      await updateOption.mutateAsync({
+      const result = await updateOption.mutateAsync({
         key: 'console_setting.announcements',
         value: JSON.stringify(announcements),
       })
-      setHasChanges(false)
-      toast.success(t('Announcements saved successfully'))
+      if (result.success) {
+        setHasChanges(false)
+        toast.success(t('Announcements saved successfully'))
+      }
     } catch {
       toast.error(t('Failed to save announcements'))
     }

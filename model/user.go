@@ -46,6 +46,7 @@ type User struct {
 	AffQuota         int            `json:"aff_quota" gorm:"type:int;default:0;column:aff_quota"`           // 邀请剩余额度
 	AffHistoryQuota  int            `json:"aff_history_quota" gorm:"type:int;default:0;column:aff_history"` // 邀请历史额度
 	InviterId        int            `json:"inviter_id" gorm:"type:int;column:inviter_id;index"`
+	RegisterIP       string         `json:"-" gorm:"type:varchar(45);column:register_ip;index"`
 	DeletedAt        gorm.DeletedAt `gorm:"index"`
 	LinuxDOId        string         `json:"linux_do_id" gorm:"column:linux_do_id;index"`
 	Setting          string         `json:"setting" gorm:"type:text;column:setting"`
@@ -339,6 +340,35 @@ func inviteUser(inviterId int) (err error) {
 	return DB.Save(user).Error
 }
 
+func (user *User) isInviteRewardEligible(inviterId int) bool {
+	if inviterId == 0 || user.Id == 0 || user.Id == inviterId {
+		return false
+	}
+
+	registerIP := strings.TrimSpace(user.RegisterIP)
+	if registerIP == "" {
+		return true
+	}
+
+	var sameIPCount int64
+	if err := DB.Unscoped().Model(&User{}).
+		Where("id <> ? AND register_ip = ?", user.Id, registerIP).
+		Count(&sameIPCount).Error; err != nil {
+		common.SysError("failed to check invite reward register ip: " + err.Error())
+		return false
+	}
+	if sameIPCount > 0 {
+		return false
+	}
+
+	inviter, err := GetUserById(inviterId, true)
+	if err != nil {
+		return false
+	}
+	inviterIP := strings.TrimSpace(inviter.RegisterIP)
+	return inviterIP == "" || inviterIP != registerIP
+}
+
 func (user *User) TransferAffQuotaToQuota(quota int) error {
 	// 检查quota是否小于最小额度
 	if float64(quota) < common.QuotaPerUnit {
@@ -418,7 +448,7 @@ func (user *User) Insert(inviterId int) error {
 	if common.QuotaForNewUser > 0 {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
 	}
-	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
+	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() && user.isInviteRewardEligible(inviterId) {
 		if common.QuotaForInvitee > 0 {
 			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
 			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
@@ -479,7 +509,7 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	if common.QuotaForNewUser > 0 {
 		RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", logger.LogQuota(common.QuotaForNewUser)))
 	}
-	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() {
+	if inviterId != 0 && operation_setting.IsPaymentComplianceConfirmed() && user.isInviteRewardEligible(inviterId) {
 		if common.QuotaForInvitee > 0 {
 			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
 			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
