@@ -36,6 +36,11 @@ docs
 data
 logs
 log
+mysql
+redis
+postgres
+postgresql
+clickhouse
 tmp
 temp
 cache
