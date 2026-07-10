@@ -335,6 +335,9 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if types.IsSkipRetryError(openaiErr) {
 		return false
 	}
+	if shouldSkipRetryForRequestValidationError(openaiErr) {
+		return false
+	}
 	if retryTimes <= 0 {
 		return false
 	}
@@ -352,6 +355,21 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 		return false
 	}
 	return operation_setting.ShouldRetryByStatusCode(code)
+}
+
+func shouldSkipRetryForRequestValidationError(openaiErr *types.NewAPIError) bool {
+	if openaiErr == nil {
+		return false
+	}
+	message := strings.ToLower(openaiErr.Error())
+	if openaiError, ok := openaiErr.RelayError.(types.OpenAIError); ok {
+		message += " " + strings.ToLower(openaiError.Message)
+		message += " " + strings.ToLower(openaiError.Type)
+		message += " " + strings.ToLower(fmt.Sprint(openaiError.Code))
+	}
+	return strings.Contains(message, "temperature") &&
+		strings.Contains(message, "top_p") &&
+		(strings.Contains(message, "cannot both") || strings.Contains(message, "only one"))
 }
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
