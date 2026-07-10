@@ -117,6 +117,7 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 		oaiError := errResponse.TryToOpenAIError()
 		if oaiError != nil {
 			newApiErr = types.WithOpenAIError(*oaiError, resp.StatusCode)
+			newApiErr = NormalizeUpstreamRequestValidationError(newApiErr)
 			if showBodyWhenFail {
 				newApiErr.Err = buildErrWithBody(newApiErr.Error())
 			}
@@ -124,10 +125,52 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 		}
 	}
 	newApiErr = types.NewOpenAIError(errors.New(errResponse.ToMessage()), types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
+	newApiErr = NormalizeUpstreamRequestValidationError(newApiErr)
 	if showBodyWhenFail {
 		newApiErr.Err = buildErrWithBody(newApiErr.Error())
 	}
 	return
+}
+
+func NormalizeUpstreamRequestValidationError(newApiErr *types.NewAPIError) *types.NewAPIError {
+	if !IsTemperatureTopPConflictError(newApiErr) {
+		return newApiErr
+	}
+	newApiErr.StatusCode = http.StatusBadRequest
+	types.ErrOptionWithSkipRetry()(newApiErr)
+	return newApiErr
+}
+
+func IsTemperatureTopPConflictError(newApiErr *types.NewAPIError) bool {
+	if newApiErr == nil {
+		return false
+	}
+	message := strings.ToLower(newApiErr.Error())
+	switch upstreamErr := newApiErr.RelayError.(type) {
+	case types.OpenAIError:
+		message += " " + strings.ToLower(upstreamErr.Message)
+		message += " " + strings.ToLower(upstreamErr.Type)
+		message += " " + strings.ToLower(fmt.Sprint(upstreamErr.Code))
+	case *types.OpenAIError:
+		if upstreamErr != nil {
+			message += " " + strings.ToLower(upstreamErr.Message)
+			message += " " + strings.ToLower(upstreamErr.Type)
+			message += " " + strings.ToLower(fmt.Sprint(upstreamErr.Code))
+		}
+	case types.ClaudeError:
+		message += " " + strings.ToLower(upstreamErr.Message)
+		message += " " + strings.ToLower(upstreamErr.Type)
+	case *types.ClaudeError:
+		if upstreamErr != nil {
+			message += " " + strings.ToLower(upstreamErr.Message)
+			message += " " + strings.ToLower(upstreamErr.Type)
+		}
+	}
+	return strings.Contains(message, "temperature") &&
+		strings.Contains(message, "top_p") &&
+		(strings.Contains(message, "cannot both") ||
+			strings.Contains(message, "both be specified") ||
+			strings.Contains(message, "only one"))
 }
 
 func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) {

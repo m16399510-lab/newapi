@@ -100,6 +100,18 @@ func sendStreamData(c *gin.Context, info *relaycommon.RelayInfo, data string, fo
 	return helper.ObjectData(c, lastStreamResponse)
 }
 
+func openAIStreamErrorFromData(data string) *types.NewAPIError {
+	var errorResponse dto.SimpleResponse
+	if err := common.UnmarshalJsonStr(data, &errorResponse); err != nil {
+		return nil
+	}
+	openAIError := errorResponse.GetOpenAIError()
+	if openAIError == nil || openAIError.Message == "" {
+		return nil
+	}
+	return service.NormalizeUpstreamRequestValidationError(types.WithOpenAIError(*openAIError, http.StatusInternalServerError))
+}
+
 func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	if resp == nil || resp.Body == nil {
 		logger.LogError(c, "invalid response or response body")
@@ -117,12 +129,20 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	var toolCount int
 	var usage = &dto.Usage{}
 	var lastStreamData string
+	var streamErr *types.NewAPIError
 	var secondLastStreamData string // 存储倒数第二个stream data，用于音频模型
 
 	// 检查是否为音频模型
 	isAudioModel := strings.Contains(strings.ToLower(model), "audio")
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
+		if err := openAIStreamErrorFromData(data); err != nil {
+			if lastStreamData == "" && info.SendResponseCount == 0 {
+				streamErr = err
+			}
+			sr.Stop(err)
+			return
+		}
 		if lastStreamData != "" {
 			if err := HandleStreamFormat(c, info, lastStreamData, info.ChannelSetting.ForceFormat, info.ChannelSetting.ThinkingToContent); err != nil {
 				common.SysLog("error handling stream format: " + err.Error())
@@ -144,6 +164,10 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	})
 
 	// 对音频模型，从倒数第二个stream data中提取usage信息
+	if streamErr != nil {
+		return nil, streamErr
+	}
+
 	if isAudioModel && secondLastStreamData != "" {
 		var streamResp struct {
 			Usage *dto.Usage `json:"usage"`

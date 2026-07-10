@@ -122,6 +122,22 @@ func TestRelayErrorHandlerKeepsOpenAIErrorMessage(t *testing.T) {
 	require.Equal(t, message, newAPIError.Error())
 }
 
+func TestRelayErrorHandlerNormalizesTemperatureTopPConflict(t *testing.T) {
+	message := "`temperature` and `top_p` cannot both be specified for this model. Please use only one."
+	body := `{"error":{"message":"` + message + `","type":"invalid_request_error","code":"invalid_request_error"}}`
+	resp := &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+
+	newAPIError := RelayErrorHandler(context.Background(), resp, false)
+
+	require.NotNil(t, newAPIError)
+	require.Equal(t, http.StatusBadRequest, newAPIError.StatusCode)
+	require.True(t, types.IsSkipRetryError(newAPIError))
+	require.Equal(t, message, newAPIError.Error())
+}
+
 func TestRelayErrorHandlerKeepsInvalidJSONBodyInDebugLog(t *testing.T) {
 	withDebugEnabled(t, true)
 

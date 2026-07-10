@@ -88,6 +88,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	defer func() {
 		if newAPIError != nil {
+			newAPIError = service.NormalizeUpstreamRequestValidationError(newAPIError)
 			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(newAPIError.Error())))
 			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
 			switch relayFormat {
@@ -171,6 +172,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		// Only return quota if downstream failed and quota was actually pre-consumed
 		if newAPIError != nil {
 			newAPIError = service.NormalizeViolationFeeError(newAPIError)
+			newAPIError = service.NormalizeUpstreamRequestValidationError(newAPIError)
 			if relayInfo.Billing != nil {
 				relayInfo.Billing.Refund(c)
 			}
@@ -227,6 +229,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
+		newAPIError = service.NormalizeUpstreamRequestValidationError(newAPIError)
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
@@ -358,18 +361,7 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 }
 
 func shouldSkipRetryForRequestValidationError(openaiErr *types.NewAPIError) bool {
-	if openaiErr == nil {
-		return false
-	}
-	message := strings.ToLower(openaiErr.Error())
-	if openaiError, ok := openaiErr.RelayError.(types.OpenAIError); ok {
-		message += " " + strings.ToLower(openaiError.Message)
-		message += " " + strings.ToLower(openaiError.Type)
-		message += " " + strings.ToLower(fmt.Sprint(openaiError.Code))
-	}
-	return strings.Contains(message, "temperature") &&
-		strings.Contains(message, "top_p") &&
-		(strings.Contains(message, "cannot both") || strings.Contains(message, "only one"))
+	return service.IsTemperatureTopPConflictError(openaiErr)
 }
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
