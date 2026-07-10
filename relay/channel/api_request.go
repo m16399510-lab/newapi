@@ -42,6 +42,23 @@ func applyUpstreamContentLength(req *http.Request, info *common.RelayInfo) {
 	}
 }
 
+func upstreamRequestContext(c *gin.Context, info *common.RelayInfo) context.Context {
+	if c != nil && c.Request != nil && info != nil && (info.IsStream || info.RelayMode == constant.RelayModeRealtime) {
+		return c.Request.Context()
+	}
+	return context.Background()
+}
+
+func attachClientCancelForStreaming(c *gin.Context, req *http.Request, info *common.RelayInfo) *http.Request {
+	if req == nil {
+		return req
+	}
+	if c != nil && c.Request != nil && info != nil && (info.IsStream || info.RelayMode == constant.RelayModeRealtime) {
+		return req.WithContext(c.Request.Context())
+	}
+	return req
+}
+
 func SetupApiRequestHeader(info *common.RelayInfo, c *gin.Context, req *http.Header) {
 	if info.RelayMode == constant.RelayModeAudioTranscription || info.RelayMode == constant.RelayModeAudioTranslation {
 		// multipart/form-data
@@ -310,7 +327,7 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, fmt.Errorf("get request url failed: %w", err)
 	}
 	logger.LogDebug(c, "fullRequestURL: %s", fullRequestURL)
-	req, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequestWithContext(upstreamRequestContext(c, info), c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
@@ -340,7 +357,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, fmt.Errorf("get request url failed: %w", err)
 	}
 	logger.LogDebug(c, "fullRequestURL: %s", fullRequestURL)
-	req, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequestWithContext(upstreamRequestContext(c, info), c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
@@ -485,7 +502,7 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	return doRequest(c, req, info)
 }
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
-	req = req.WithContext(c.Request.Context())
+	req = attachClientCancelForStreaming(c, req, info)
 
 	var client *http.Client
 	var err error
@@ -539,7 +556,7 @@ func DoTaskApiRequest(a TaskAdaptor, c *gin.Context, info *common.RelayInfo, req
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, fullRequestURL, requestBody)
+	req, err := http.NewRequestWithContext(context.Background(), c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
