@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Availability temporarily unavailable": "現在、残数を取得できません",
+    "Daily global request limit": "全体の1日リクエスト上限",
+    "Daily global request limits": "全体の1日リクエスト上限",
+    "Daily limit": "1日の上限",
+    "Daily request limit must be a non-negative integer": "1日のリクエスト上限は0以上の整数である必要があります",
+    "JSON map of exact model name to the shared daily request limit. Use 0 or omit a model for unlimited.": "正確なモデル名と共有の1日リクエスト上限を対応付けるJSONです。0または省略で無制限になります。",
+    "Shared by Guangzhou, Hong Kong, all users, tokens, and groups. Set 0 for unlimited.": "広州、香港、すべてのユーザー、トークン、グループで共有されます。0は無制限です。",
+    "Sold out today": "本日分は終了しました",
+    "Today availability": "本日の利用可能数",
+    "Today remaining {{remaining}} / {{limit}}": "本日の残り {{remaining}} / {{limit}}",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

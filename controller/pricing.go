@@ -57,6 +57,22 @@ func GetPricing(c *gin.Context) {
 
 	usableGroup = service.GetUserUsableGroups(group)
 	pricing = filterPricingByUsableGroups(pricing, usableGroup)
+	modelNames := make([]string, 0, len(pricing))
+	for _, item := range pricing {
+		modelNames = append(modelNames, item.ModelName)
+	}
+	dailyLimitStatuses := service.GetModelDailyLimitStatuses(c.Request.Context(), modelNames)
+	for index := range pricing {
+		status, ok := dailyLimitStatuses[pricing[index].ModelName]
+		if !ok {
+			continue
+		}
+		limit := status.Limit
+		resetAt := status.ResetAt
+		pricing[index].DailyRequestLimit = &limit
+		pricing[index].DailyRequestRemaining = status.Remaining
+		pricing[index].DailyRequestResetAt = &resetAt
+	}
 	// check groupRatio contains usableGroup
 	for group := range ratio_setting.GetGroupRatioCopy() {
 		if _, ok := usableGroup[group]; !ok {

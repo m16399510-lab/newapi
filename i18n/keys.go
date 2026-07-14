@@ -231,8 +231,10 @@ const (
 
 // Rate limit related messages
 const (
-	MsgRateLimitReached      = "rate_limit.reached"
-	MsgRateLimitTotalReached = "rate_limit.total_reached"
+	MsgRateLimitReached           = "rate_limit.reached"
+	MsgRateLimitTotalReached      = "rate_limit.total_reached"
+	MsgModelDailyLimitReached     = "rate_limit.model_daily_reached"
+	MsgModelDailyLimitUnavailable = "rate_limit.model_daily_unavailable"
 )
 
 // Setting related messages

@@ -219,6 +219,9 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	}
 
 	// 9. 发送请求
+	if limitErr := service.CheckModelDailyLimit(c, info.OriginModelName, info.IsChannelTest); limitErr != nil {
+		return nil, service.TaskErrorFromAPIError(limitErr)
+	}
 	resp, err := adaptor.DoRequest(c, info, requestBody)
 	if err != nil {
 		return nil, service.TaskErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)

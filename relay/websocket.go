@@ -25,6 +25,9 @@ func WssHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.
 	//requestBody = bytes.NewBuffer(firstWssRequest.([]byte))
 
 	statusCodeMappingStr := c.GetString("status_code_mapping")
+	if limitErr := service.CheckModelDailyLimit(c, info.OriginModelName, info.IsChannelTest); limitErr != nil {
+		return limitErr
+	}
 	resp, err := adaptor.DoRequest(c, info, nil)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeDoRequestFailed)

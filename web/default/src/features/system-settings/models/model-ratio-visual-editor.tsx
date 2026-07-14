@@ -17,6 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import {
+  type ColumnFiltersState,
+  type OnChangeFn,
+  type PaginationState,
+  type RowSelectionState,
+  type VisibilityState,
+  type SortingState,
+} from '@tanstack/react-table'
+import { Copy, Plus } from 'lucide-react'
+import {
   useState,
   useMemo,
   memo,
@@ -26,19 +35,9 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react'
-import {
-  type ColumnFiltersState,
-  type OnChangeFn,
-  type PaginationState,
-  type RowSelectionState,
-  type VisibilityState,
-  type SortingState,
-} from '@tanstack/react-table'
-import { useMediaQuery } from '@/hooks'
-import { Copy, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+
 import {
   DataTableBulkActions,
   DataTableToolbar,
@@ -47,7 +46,10 @@ import {
   DataTableView,
   useDataTable,
 } from '@/components/data-table'
+import { Button } from '@/components/ui/button'
 import { combineBillingExpr } from '@/features/pricing/lib/billing-expr'
+import { useMediaQuery } from '@/hooks'
+
 import { safeJsonParse } from '../utils/json-parser'
 import {
   ModelPricingEditorPanel,
@@ -73,6 +75,7 @@ type ModelRatioVisualEditorProps = {
   savedAudioCompletionRatio: string
   savedBillingMode: string
   savedBillingExpr: string
+  savedDailyRequestLimits: string
   modelPrice: string
   modelRatio: string
   cacheRatio: string
@@ -83,6 +86,7 @@ type ModelRatioVisualEditorProps = {
   audioCompletionRatio: string
   billingMode: string
   billingExpr: string
+  dailyRequestLimits: string
   onChange: (field: string, value: string) => void
   onSave: () => void | Promise<void>
   isSaving: boolean
@@ -109,6 +113,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
     savedAudioCompletionRatio,
     savedBillingMode,
     savedBillingExpr,
+    savedDailyRequestLimits,
     modelPrice,
     modelRatio,
     cacheRatio,
@@ -119,6 +124,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
     audioCompletionRatio,
     billingMode,
     billingExpr,
+    dailyRequestLimits,
     onChange,
     onSave,
     isSaving,
@@ -190,6 +196,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       audioCompletionRatio: savedAudioCompletionRatio,
       billingMode: savedBillingMode,
       billingExpr: savedBillingExpr,
+      dailyRequestLimits: savedDailyRequestLimits,
     })
     const draftRows = buildModelSnapshots({
       modelPrice,
@@ -202,6 +209,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       audioCompletionRatio,
       billingMode,
       billingExpr,
+      dailyRequestLimits,
     })
 
     const savedByName = new Map(savedRows.map((row) => [row.name, row]))
@@ -238,6 +246,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
     savedAudioCompletionRatio,
     savedBillingMode,
     savedBillingExpr,
+    savedDailyRequestLimits,
     modelPrice,
     modelRatio,
     cacheRatio,
@@ -248,6 +257,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
     audioCompletionRatio,
     billingMode,
     billingExpr,
+    dailyRequestLimits,
   ])
 
   const modeCounts = useMemo(
@@ -362,6 +372,10 @@ const ModelRatioVisualEditorComponent = forwardRef<
         billingExpr,
         { fallback: {}, silent: true }
       )
+      const dailyRequestLimitMap = safeJsonParse<Record<string, number>>(
+        dailyRequestLimits,
+        { fallback: {}, silent: true }
+      )
 
       delete priceMap[name]
       delete ratioMap[name]
@@ -373,6 +387,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       delete audioCompletionMap[name]
       delete billingModeMap[name]
       delete billingExprMap[name]
+      delete dailyRequestLimitMap[name]
 
       onChange('ModelPrice', JSON.stringify(priceMap, null, 2))
       onChange('ModelRatio', JSON.stringify(ratioMap, null, 2))
@@ -393,6 +408,10 @@ const ModelRatioVisualEditorComponent = forwardRef<
         'billing_setting.billing_expr',
         JSON.stringify(billingExprMap, null, 2)
       )
+      onChange(
+        'model_limit_setting.daily_request_limits',
+        JSON.stringify(dailyRequestLimitMap, null, 2)
+      )
 
       if (editData?.name === name) {
         setEditData(null)
@@ -411,6 +430,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       audioCompletionRatio,
       billingMode,
       billingExpr,
+      dailyRequestLimits,
       onChange,
       editData,
     ]
@@ -450,7 +470,11 @@ const ModelRatioVisualEditorComponent = forwardRef<
   })
 
   const persistPricingData = useCallback(
-    (data: ModelRatioData, targetNames: string[] = [data.name]) => {
+    (
+      data: ModelRatioData,
+      targetNames: string[] = [data.name],
+      includeDailyLimit = true
+    ) => {
       const priceMap = safeJsonParse<Record<string, number>>(modelPrice, {
         fallback: {},
         silent: true,
@@ -491,6 +515,10 @@ const ModelRatioVisualEditorComponent = forwardRef<
         billingExpr,
         { fallback: {}, silent: true }
       )
+      const dailyRequestLimitMap = safeJsonParse<Record<string, number>>(
+        dailyRequestLimits,
+        { fallback: {}, silent: true }
+      )
 
       const setIfPresent = (
         target: Record<string, number>,
@@ -513,6 +541,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
         delete audioCompletionMap[name]
         delete billingModeMap[name]
         delete billingExprMap[name]
+        if (includeDailyLimit) delete dailyRequestLimitMap[name]
 
         if (data.billingMode === 'tiered_expr') {
           const combined = combineBillingExpr(
@@ -546,6 +575,13 @@ const ModelRatioVisualEditorComponent = forwardRef<
           setIfPresent(audioMap, name, data.audioRatio)
           setIfPresent(audioCompletionMap, name, data.audioCompletionRatio)
         }
+
+        if (includeDailyLimit) {
+          const dailyLimit = Number(data.dailyRequestLimit || 0)
+          if (Number.isInteger(dailyLimit) && dailyLimit > 0) {
+            dailyRequestLimitMap[name] = dailyLimit
+          }
+        }
       })
 
       onChange('ModelPrice', JSON.stringify(priceMap, null, 2))
@@ -567,6 +603,12 @@ const ModelRatioVisualEditorComponent = forwardRef<
         'billing_setting.billing_expr',
         JSON.stringify(billingExprMap, null, 2)
       )
+      if (includeDailyLimit) {
+        onChange(
+          'model_limit_setting.daily_request_limits',
+          JSON.stringify(dailyRequestLimitMap, null, 2)
+        )
+      }
     },
     [
       modelPrice,
@@ -579,6 +621,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       audioCompletionRatio,
       billingMode,
       billingExpr,
+      dailyRequestLimits,
       onChange,
     ]
   )
@@ -598,7 +641,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       return
     }
 
-    persistPricingData(editData, targetNames)
+    persistPricingData(editData, targetNames, false)
     table.resetRowSelection()
     toast.success(
       t('Applied {{name}} pricing to {{count}} models', {

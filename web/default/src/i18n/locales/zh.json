@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Availability temporarily unavailable": "暂时无法获取余量",
+    "Daily global request limit": "每日全站调用上限",
+    "Daily global request limits": "每日全站调用上限",
+    "Daily limit": "每日上限",
+    "Daily request limit must be a non-negative integer": "每日调用上限必须是非负整数",
+    "JSON map of exact model name to the shared daily request limit. Use 0 or omit a model for unlimited.": "精确模型名到全站每日调用上限的 JSON 映射。设为 0 或省略模型表示不限量。",
+    "Shared by Guangzhou, Hong Kong, all users, tokens, and groups. Set 0 for unlimited.": "广州、香港及全部用户、令牌和分组共用。设为 0 表示不限量。",
+    "Sold out today": "今日已抢完",
+    "Today availability": "今日余量",
+    "Today remaining {{remaining}} / {{limit}}": "今日剩余 {{remaining}} / {{limit}}",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

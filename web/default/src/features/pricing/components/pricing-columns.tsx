@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { type ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { getLobeIcon } from '@/lib/lobe-icon'
+
 import {
   BadgeCell,
   BadgeListCell,
@@ -26,6 +26,8 @@ import {
 } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
+import { getLobeIcon } from '@/lib/lobe-icon'
+
 import { DEFAULT_TOKEN_UNIT, QUOTA_TYPE_VALUES } from '../constants'
 import {
   getDynamicDisplayGroupRatio,
@@ -39,6 +41,7 @@ import {
   stripTrailingZeros,
 } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
+import { DailyLimitStatus } from './daily-limit-status'
 
 // ----------------------------------------------------------------------------
 // Pricing Table Columns
@@ -106,6 +109,24 @@ export function usePricingColumns(
       },
       size: 80,
       enableSorting: false,
+    },
+
+    {
+      accessorKey: 'daily_request_remaining',
+      meta: { label: t('Today availability') },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('Today availability')}
+        />
+      ),
+      cell: ({ row }) => (
+        <DailyLimitStatus model={row.original} showUnlimited />
+      ),
+      sortingFn: (rowA, rowB) =>
+        (rowA.original.daily_request_remaining ?? Number.MAX_SAFE_INTEGER) -
+        (rowB.original.daily_request_remaining ?? Number.MAX_SAFE_INTEGER),
+      size: 170,
     },
 
     // Price column

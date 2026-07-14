@@ -17,7 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as z from 'zod'
+
 import { combineBillingExpr } from '@/features/pricing/lib/billing-expr'
+
 import { formatPricingNumber } from './pricing-format'
 
 export const createModelPricingSchema = (t: (key: string) => string) =>
@@ -31,6 +33,12 @@ export const createModelPricingSchema = (t: (key: string) => string) =>
     imageRatio: z.string().optional(),
     audioRatio: z.string().optional(),
     audioCompletionRatio: z.string().optional(),
+    dailyRequestLimit: z
+      .string()
+      .refine((value) => value === '' || /^\d+$/.test(value), {
+        message: t('Daily request limit must be a non-negative integer'),
+      })
+      .optional(),
   })
 
 export type ModelPricingFormValues = z.infer<
@@ -60,6 +68,7 @@ export type ModelRatioData = {
   billingMode?: PricingMode
   billingExpr?: string
   requestRuleExpr?: string
+  dailyRequestLimit?: string
 }
 
 export type PreviewRow = {

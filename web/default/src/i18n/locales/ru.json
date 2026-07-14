@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Availability temporarily unavailable": "Данные о доступности временно недоступны",
+    "Daily global request limit": "Общий дневной лимит запросов",
+    "Daily global request limits": "Общие дневные лимиты запросов",
+    "Daily limit": "Дневной лимит",
+    "Daily request limit must be a non-negative integer": "Дневной лимит должен быть неотрицательным целым числом",
+    "JSON map of exact model name to the shared daily request limit. Use 0 or omit a model for unlimited.": "JSON-карта точного имени модели и общего дневного лимита. Укажите 0 или не добавляйте модель для режима без ограничений.",
+    "Shared by Guangzhou, Hong Kong, all users, tokens, and groups. Set 0 for unlimited.": "Общий для Гуанчжоу, Гонконга, всех пользователей, токенов и групп. 0 означает без ограничений.",
+    "Sold out today": "На сегодня всё разобрано",
+    "Today availability": "Доступность сегодня",
+    "Today remaining {{remaining}} / {{limit}}": "Осталось сегодня: {{remaining}} / {{limit}}",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

@@ -219,6 +219,12 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 	requestURL := getMjRequestPath(c.Request.URL.String())
 	baseURL := c.GetString("base_url")
 	fullRequestURL := fmt.Sprintf("%s%s", baseURL, requestURL)
+	if limitErr := service.CheckModelDailyLimit(c, modelName, info.IsChannelTest); limitErr != nil {
+		return &dto.MidjourneyResponse{
+			Code:        limitErr.StatusCode,
+			Description: limitErr.Error(),
+		}
+	}
 	mjResp, _, err := service.DoMidjourneyHttpRequest(c, time.Second*60, fullRequestURL)
 	if err != nil {
 		return &mjResp.Response
@@ -524,6 +530,12 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 		}
 	}
 
+	if limitErr := service.CheckModelDailyLimit(c, modelName, relayInfo.IsChannelTest); limitErr != nil {
+		return &dto.MidjourneyResponse{
+			Code:        limitErr.StatusCode,
+			Description: limitErr.Error(),
+		}
+	}
 	midjResponseWithStatus, responseBody, err := service.DoMidjourneyHttpRequest(c, time.Second*60, fullRequestURL)
 	if err != nil {
 		return &midjResponseWithStatus.Response

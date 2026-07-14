@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Availability temporarily unavailable": "Tạm thời không thể lấy số lượt còn lại",
+    "Daily global request limit": "Giới hạn yêu cầu hằng ngày toàn hệ thống",
+    "Daily global request limits": "Các giới hạn yêu cầu hằng ngày toàn hệ thống",
+    "Daily limit": "Giới hạn hằng ngày",
+    "Daily request limit must be a non-negative integer": "Giới hạn hằng ngày phải là số nguyên không âm",
+    "JSON map of exact model name to the shared daily request limit. Use 0 or omit a model for unlimited.": "Ánh xạ JSON từ tên mô hình chính xác đến giới hạn yêu cầu hằng ngày dùng chung. Dùng 0 hoặc bỏ qua mô hình để không giới hạn.",
+    "Shared by Guangzhou, Hong Kong, all users, tokens, and groups. Set 0 for unlimited.": "Dùng chung cho Quảng Châu, Hồng Kông, mọi người dùng, token và nhóm. Đặt 0 để không giới hạn.",
+    "Sold out today": "Hôm nay đã hết lượt",
+    "Today availability": "Lượt dùng hôm nay",
+    "Today remaining {{remaining}} / {{limit}}": "Hôm nay còn {{remaining}} / {{limit}}",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

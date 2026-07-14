@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/QuantumNous/new-api/setting/model_limit_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -618,6 +619,11 @@ func handleConfigUpdate(key, value string) bool {
 	} else if configName == "billing_setting" {
 		InvalidatePricingCache()
 		ratio_setting.InvalidateExposedDataCache()
+	} else if configName == "model_limit_setting" {
+		if err := model_limit_setting.UpdateDailyRequestLimits(value); err != nil {
+			common.SysError("failed to update model daily request limits: " + err.Error())
+		}
+		InvalidatePricingCache()
 	} else if configName == "theme" {
 		system_setting.UpdateAndSyncTheme()
 	}

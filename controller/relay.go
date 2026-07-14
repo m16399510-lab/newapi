@@ -443,6 +443,8 @@ func RelayMidjourney(c *gin.Context) {
 		if mjErr.Code == 30 {
 			mjErr.Result = "当前分组负载已饱和，请稍后再试，或升级账户以提升服务质量。"
 			statusCode = http.StatusTooManyRequests
+		} else if mjErr.Code == http.StatusTooManyRequests || mjErr.Code == http.StatusServiceUnavailable {
+			statusCode = mjErr.Code
 		}
 		c.JSON(statusCode, gin.H{
 			"description": fmt.Sprintf("%s %s", mjErr.Description, mjErr.Result),

@@ -16,10 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Code2, Eye, RotateCcw, Save } from 'lucide-react'
 import { memo, useCallback, useRef, useState } from 'react'
 import { type UseFormReturn } from 'react-hook-form'
-import { Code2, Eye, RotateCcw, Save } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -31,7 +33,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
-import { JsonCodeEditor } from '@/components/json-code-editor'
+
 import {
   SettingsForm,
   SettingsSwitchContent,
@@ -54,6 +56,7 @@ type ModelFormValues = {
   ExposeRatioEnabled: boolean
   BillingMode: string
   BillingExpr: string
+  DailyRequestLimits: string
 }
 
 type ModelRatioFormProps = {
@@ -74,12 +77,19 @@ type ModelJsonFieldName =
   | 'ImageRatio'
   | 'AudioRatio'
   | 'AudioCompletionRatio'
+  | 'DailyRequestLimits'
 
 const modelJsonFields: Array<{
   name: ModelJsonFieldName
   labelKey: string
   descriptionKey: string
 }> = [
+  {
+    name: 'DailyRequestLimits',
+    labelKey: 'Daily global request limits',
+    descriptionKey:
+      'JSON map of exact model name to the shared daily request limit. Use 0 or omit a model for unlimited.',
+  },
   {
     name: 'ModelPrice',
     labelKey: 'Model fixed pricing',
@@ -244,6 +254,7 @@ export const ModelRatioForm = memo(function ModelRatioForm({
               savedAudioCompletionRatio={savedValues.AudioCompletionRatio}
               savedBillingMode={savedValues.BillingMode}
               savedBillingExpr={savedValues.BillingExpr}
+              savedDailyRequestLimits={savedValues.DailyRequestLimits}
               modelPrice={form.watch('ModelPrice')}
               modelRatio={form.watch('ModelRatio')}
               cacheRatio={form.watch('CacheRatio')}
@@ -254,12 +265,15 @@ export const ModelRatioForm = memo(function ModelRatioForm({
               audioCompletionRatio={form.watch('AudioCompletionRatio')}
               billingMode={form.watch('BillingMode')}
               billingExpr={form.watch('BillingExpr')}
+              dailyRequestLimits={form.watch('DailyRequestLimits')}
               onSave={handleSave}
               isSaving={isSaving}
               onChange={(field, value) => {
                 const fieldMap: Record<string, keyof ModelFormValues> = {
                   'billing_setting.billing_mode': 'BillingMode',
                   'billing_setting.billing_expr': 'BillingExpr',
+                  'model_limit_setting.daily_request_limits':
+                    'DailyRequestLimits',
                 }
                 const formField =
                   fieldMap[field] || (field as keyof ModelFormValues)

@@ -36,6 +36,9 @@ type Pricing struct {
 	BillingMode            string                  `json:"billing_mode,omitempty"`
 	BillingExpr            string                  `json:"billing_expr,omitempty"`
 	PricingVersion         string                  `json:"pricing_version,omitempty"`
+	DailyRequestLimit      *int64                  `json:"daily_request_limit,omitempty"`
+	DailyRequestRemaining  *int64                  `json:"daily_request_remaining,omitempty"`
+	DailyRequestResetAt    *int64                  `json:"daily_request_reset_at,omitempty"`
 }
 
 type PricingVendor struct {
