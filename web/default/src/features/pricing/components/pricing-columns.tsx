@@ -42,6 +42,7 @@ import {
 } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
 import { DailyLimitStatus } from './daily-limit-status'
+import { EmptyResponseCompensationStatus } from './empty-response-compensation-status'
 
 // ----------------------------------------------------------------------------
 // Pricing Table Columns
@@ -81,11 +82,12 @@ export function usePricingColumns(
         const modelIcon = modelIconKey ? getLobeIcon(modelIconKey, 14) : null
 
         return (
-          <div className='flex max-w-full min-w-0 items-center gap-2'>
+          <div className='flex max-w-full min-w-0 flex-wrap items-center gap-2'>
             {modelIcon}
             <span className='truncate font-mono text-sm font-medium'>
               {model.model_name}
             </span>
+            <EmptyResponseCompensationStatus model={model} />
           </div>
         )
       },

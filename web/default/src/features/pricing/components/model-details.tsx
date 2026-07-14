@@ -77,6 +77,7 @@ import type {
 } from '../types'
 import { DailyLimitStatus } from './daily-limit-status'
 import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
+import { EmptyResponseCompensationStatus } from './empty-response-compensation-status'
 import { ModelDetailsApi } from './model-details-api'
 import { ModelDetailsPerformance } from './model-details-performance'
 
@@ -574,6 +575,7 @@ function ModelHeader(props: { model: PricingModel }) {
           </>
         )}
         <DailyLimitStatus model={model} />
+        <EmptyResponseCompensationStatus model={model} showRatio />
       </div>
       {description && (
         <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>

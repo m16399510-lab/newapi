@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Gift, RefreshCw } from 'lucide-react'
+import { CircleHelp, Gift, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -180,6 +180,26 @@ export function EmptyResponseCompensation() {
                 icon={<Gift className='size-4' />}
                 disableHoverEffect
               >
+                <Alert className='mb-5 bg-transparent'>
+                  <CircleHelp />
+                  <AlertTitle>{t('Empty response definition')}</AlertTitle>
+                  <AlertDescription className='space-y-1 text-balance'>
+                    <div>
+                      {t(
+                        'A request is only considered an empty response when it finishes normally, uses a participating model, has at least {{input}} input tokens and no more than {{output}} output tokens, and returns no text, reasoning, tool call, refusal, or structured result.',
+                        {
+                          input: data.rules.input_token_threshold,
+                          output: data.rules.output_token_threshold,
+                        }
+                      )}
+                    </div>
+                    <div>
+                      {t(
+                        'Client disconnects, upstream or network errors, automatic retries, subscription calls, and free calls are not considered empty responses.'
+                      )}
+                    </div>
+                  </AlertDescription>
+                </Alert>
                 <div className='grid gap-5 lg:grid-cols-[minmax(240px,1fr)_2fr]'>
                   <div className='space-y-2'>
                     <div className='flex items-center justify-between gap-3 text-sm'>

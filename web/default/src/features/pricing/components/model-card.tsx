@@ -35,6 +35,7 @@ import { isTokenBasedModel } from '../lib/model-helpers'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
 import { DailyLimitStatus } from './daily-limit-status'
+import { EmptyResponseCompensationStatus } from './empty-response-compensation-status'
 import { ModelPerfBadge, type ModelPerfBadgeData } from './model-perf-badge'
 
 export interface ModelCardProps {
@@ -248,6 +249,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
             />
           )}
           <DailyLimitStatus model={props.model} />
+          <EmptyResponseCompensationStatus model={props.model} />
         </div>
         <ModelPerfBadge perf={props.perf} className='row-span-2 self-start' />
 

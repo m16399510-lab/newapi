@@ -59,6 +59,7 @@ export type PricingModel = {
   daily_request_limit?: number
   daily_request_remaining?: number
   daily_request_reset_at?: number
+  empty_response_compensation_ratio?: number
   /**
    * Optional model metadata fields reserved for backend-provided catalog data.
    * Keep them data-driven; do not synthesize display values on the client.

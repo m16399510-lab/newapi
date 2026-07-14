@@ -4,6 +4,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	emptysetting "github.com/QuantumNous/new-api/setting/empty_response_compensation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,20 @@ func filterPricingByUsableGroups(pricing []model.Pricing, usableGroup map[string
 		}
 	}
 	return filtered
+}
+
+func applyEmptyResponseCompensationPricing(pricing []model.Pricing, setting emptysetting.Setting) {
+	if !setting.Enabled {
+		return
+	}
+	for index := range pricing {
+		ratio, ok := setting.ModelRatios[pricing[index].ModelName]
+		if !ok {
+			continue
+		}
+		ratioCopy := ratio
+		pricing[index].EmptyResponseCompensationRatio = &ratioCopy
+	}
 }
 
 func GetPricing(c *gin.Context) {
@@ -73,6 +88,7 @@ func GetPricing(c *gin.Context) {
 		pricing[index].DailyRequestRemaining = status.Remaining
 		pricing[index].DailyRequestResetAt = &resetAt
 	}
+	applyEmptyResponseCompensationPricing(pricing, emptysetting.Get())
 	// check groupRatio contains usableGroup
 	for group := range ratio_setting.GetGroupRatioCopy() {
 		if _, ok := usableGroup[group]; !ok {

@@ -17,14 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFieldArray, useForm, type Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
+import { MultiSelect } from '@/components/multi-select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,6 +49,7 @@ import {
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { getAdminEmptyResponseCompensations } from '@/features/empty-response-compensation/api'
+import { getPricing } from '@/features/pricing/api'
 import { formatQuota, formatTimestamp } from '@/lib/format'
 
 import {
@@ -59,14 +61,14 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
-const modelRatioSchema = z.object({
-  model: z.string().trim().min(1),
+const modelRatioGroupSchema = z.object({
+  models: z.array(z.string().trim().min(1)).min(1),
   ratio: z.coerce.number().int().min(1).max(100),
 })
 
 const schema = z.object({
   enabled: z.boolean(),
-  modelRatios: z.array(modelRatioSchema),
+  modelRatioGroups: z.array(modelRatioGroupSchema),
   minQualificationAmount: z.coerce.number().int().min(0),
   inputTokenThreshold: z.coerce.number().int().min(0),
   outputTokenThreshold: z.coerce.number().int().min(0),
@@ -92,34 +94,52 @@ type EmptyResponseCompensationDefaults = {
   announcement: string
 }
 
-function parseModelRatios(raw: string): Values['modelRatios'] {
+function parseModelRatioGroups(raw: string): Values['modelRatioGroups'] {
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return []
     }
-    return Object.entries(parsed)
-      .filter(
-        ([model, ratio]) =>
-          model.trim() !== '' &&
-          typeof ratio === 'number' &&
-          Number.isInteger(ratio) &&
-          ratio >= 1 &&
-          ratio <= 100
-      )
-      .map(([model, ratio]) => ({ model, ratio: ratio as number }))
-      .sort((a, b) => a.model.localeCompare(b.model))
+    const groupedModels = new Map<number, string[]>()
+    for (const [model, ratio] of Object.entries(parsed)) {
+      if (
+        model.trim() === '' ||
+        typeof ratio !== 'number' ||
+        !Number.isInteger(ratio) ||
+        ratio < 1 ||
+        ratio > 100
+      ) {
+        continue
+      }
+      const models = groupedModels.get(ratio) ?? []
+      models.push(model)
+      groupedModels.set(ratio, models)
+    }
+    return [...groupedModels.entries()]
+      .map(([ratio, models]) => ({
+        ratio,
+        models: models.sort((a, b) => a.localeCompare(b)),
+      }))
+      .sort((a, b) => b.ratio - a.ratio)
   } catch {
     return []
   }
 }
 
-function serializeModelRatios(rows: Values['modelRatios']) {
+function serializeModelRatioGroups(groups: Values['modelRatioGroups']) {
   const ratios: Record<string, number> = {}
-  for (const row of [...rows].sort((a, b) => a.model.localeCompare(b.model))) {
-    ratios[row.model.trim()] = row.ratio
+  for (const group of groups) {
+    for (const model of group.models) {
+      ratios[model.trim()] = group.ratio
+    }
   }
-  return JSON.stringify(ratios)
+  return JSON.stringify(
+    Object.fromEntries(
+      Object.entries(ratios).sort(([modelA], [modelB]) =>
+        modelA.localeCompare(modelB)
+      )
+    )
+  )
 }
 
 export function EmptyResponseCompensationSection({
@@ -128,10 +148,19 @@ export function EmptyResponseCompensationSection({
   defaultValues: EmptyResponseCompensationDefaults
 }) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const updateOption = useUpdateOption()
   const parsedDefaults: Values = {
-    ...defaultValues,
-    modelRatios: parseModelRatios(defaultValues.modelRatios),
+    enabled: defaultValues.enabled,
+    modelRatioGroups: parseModelRatioGroups(defaultValues.modelRatios),
+    minQualificationAmount: defaultValues.minQualificationAmount,
+    inputTokenThreshold: defaultValues.inputTokenThreshold,
+    outputTokenThreshold: defaultValues.outputTokenThreshold,
+    claimWindowDays: defaultValues.claimWindowDays,
+    dailyClaimLimit: defaultValues.dailyClaimLimit,
+    overclockWindowMinutes: defaultValues.overclockWindowMinutes,
+    overclockEmptyCount: defaultValues.overclockEmptyCount,
+    announcement: defaultValues.announcement,
   }
   const savedValuesRef = useRef(parsedDefaults)
   const form = useForm<Values>({
@@ -140,26 +169,62 @@ export function EmptyResponseCompensationSection({
   })
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'modelRatios',
+    name: 'modelRatioGroups',
   })
   const { isDirty, isSubmitting } = form.formState
   const enabled = form.watch('enabled')
+  const modelRatioGroups = form.watch('modelRatioGroups')
+  const pricingQuery = useQuery({
+    queryKey: ['pricing'],
+    queryFn: getPricing,
+    staleTime: 30_000,
+  })
   const adminQuery = useQuery({
     queryKey: ['empty-response-compensation', 'admin'],
     queryFn: () => getAdminEmptyResponseCompensations(1, 20),
     refetchInterval: 30_000,
   })
+  const modelOptions = useMemo(() => {
+    const names = new Set(
+      (pricingQuery.data?.data ?? []).map((model) => model.model_name)
+    )
+    for (const group of modelRatioGroups) {
+      for (const model of group.models) names.add(model)
+    }
+    return [...names]
+      .sort((a, b) => a.localeCompare(b))
+      .map((model) => ({ label: model, value: model }))
+  }, [modelRatioGroups, pricingQuery.data])
+
+  function updateGroupModels(groupIndex: number, models: string[]) {
+    const normalizedModels = models.map((model) => model.trim()).filter(Boolean)
+    const modelsInOtherGroups = new Set(
+      form
+        .getValues('modelRatioGroups')
+        .flatMap((group, index) => (index === groupIndex ? [] : group.models))
+    )
+    if (normalizedModels.some((model) => modelsInOtherGroups.has(model))) {
+      toast.error(t('Each model can only appear once'))
+      return
+    }
+    form.setValue(`modelRatioGroups.${groupIndex}.models`, normalizedModels, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+  }
 
   async function onSubmit(values: Values) {
-    const modelNames = values.modelRatios.map((item) => item.model.trim())
+    const modelNames = values.modelRatioGroups.flatMap((group) => group.models)
     if (new Set(modelNames).size !== modelNames.length) {
       toast.error(t('Each model can only appear once'))
       return
     }
 
-    const currentRatios = serializeModelRatios(values.modelRatios)
+    const currentRatios = serializeModelRatioGroups(values.modelRatioGroups)
     const savedValues = savedValuesRef.current
-    const originalRatios = serializeModelRatios(savedValues.modelRatios)
+    const originalRatios = serializeModelRatioGroups(
+      savedValues.modelRatioGroups
+    )
     const optionValues: Array<{
       key: string
       value: string
@@ -225,9 +290,22 @@ export function EmptyResponseCompensationSection({
     for (const update of updates) {
       await updateOption.mutateAsync({ key: update.key, value: update.value })
     }
+    if (
+      updates.some((update) =>
+        [
+          'empty_response_compensation_setting.enabled',
+          'empty_response_compensation_setting.model_ratios',
+        ].includes(update.key)
+      )
+    ) {
+      await queryClient.invalidateQueries({ queryKey: ['pricing'] })
+    }
     savedValuesRef.current = {
       ...values,
-      modelRatios: values.modelRatios.map((item) => ({ ...item })),
+      modelRatioGroups: values.modelRatioGroups.map((group) => ({
+        ...group,
+        models: [...group.models],
+      })),
     }
     form.reset(values)
   }
@@ -285,10 +363,10 @@ export function EmptyResponseCompensationSection({
                 type='button'
                 variant='outline'
                 size='sm'
-                onClick={() => append({ model: '', ratio: 100 })}
+                onClick={() => append({ models: [], ratio: 100 })}
               >
                 <Plus />
-                {t('Add model')}
+                {t('Add group')}
               </Button>
             </div>
             {fields.length === 0 ? (
@@ -296,60 +374,90 @@ export function EmptyResponseCompensationSection({
                 {t('No models are configured for compensation')}
               </div>
             ) : (
-              <div className='space-y-2'>
+              <div className='space-y-3'>
                 {fields.map((field, index) => (
                   <div
                     key={field.id}
-                    className='grid min-w-0 grid-cols-[minmax(0,1fr)_110px_36px] items-start gap-2'
+                    className='space-y-3 rounded-md border p-3'
                   >
+                    <div className='flex items-end justify-between gap-3'>
+                      <div className='min-w-0'>
+                        <div className='text-sm font-medium'>
+                          {t('Group')} {index + 1}
+                        </div>
+                        <div className='text-muted-foreground text-xs'>
+                          {t('{{n}} model(s) selected', {
+                            n: modelRatioGroups[index]?.models.length ?? 0,
+                          })}
+                        </div>
+                      </div>
+                      <div className='flex shrink-0 items-end gap-2'>
+                        <FormField
+                          control={form.control}
+                          name={`modelRatioGroups.${index}.ratio`}
+                          render={({ field: ratioField }) => (
+                            <FormItem className='w-28'>
+                              <FormLabel>{t('Compensation ratio')}</FormLabel>
+                              <FormControl>
+                                <div className='relative'>
+                                  <Input
+                                    type='number'
+                                    min={1}
+                                    max={100}
+                                    className='pr-7'
+                                    {...ratioField}
+                                  />
+                                  <span className='text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-sm'>
+                                    %
+                                  </span>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='icon'
+                          title={t('Remove group')}
+                          aria-label={t('Remove group')}
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </div>
                     <FormField
                       control={form.control}
-                      name={`modelRatios.${index}.model`}
-                      render={({ field: modelField }) => (
+                      name={`modelRatioGroups.${index}.models`}
+                      render={({ field: modelsField }) => (
                         <FormItem>
+                          <FormLabel>{t('Models')}</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder={t('Exact model name')}
-                              {...modelField}
+                            <MultiSelect
+                              options={modelOptions}
+                              selected={modelsField.value}
+                              onChange={(models) =>
+                                updateGroupModels(index, models)
+                              }
+                              placeholder={t(
+                                'Select models or add custom ones'
+                              )}
+                              allowCreate
+                              maxVisibleChips={8}
+                              disabled={updateOption.isPending || isSubmitting}
                             />
                           </FormControl>
+                          <FormDescription>
+                            {t(
+                              'Search existing models, enter an exact custom model name, or paste names separated by commas or new lines'
+                            )}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name={`modelRatios.${index}.ratio`}
-                      render={({ field: ratioField }) => (
-                        <FormItem>
-                          <FormControl>
-                            <div className='relative'>
-                              <Input
-                                type='number'
-                                min={1}
-                                max={100}
-                                className='pr-7'
-                                {...ratioField}
-                              />
-                              <span className='text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-sm'>
-                                %
-                              </span>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type='button'
-                      variant='ghost'
-                      size='icon'
-                      title={t('Remove model')}
-                      aria-label={t('Remove model')}
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 />
-                    </Button>
                   </div>
                 ))}
               </div>
