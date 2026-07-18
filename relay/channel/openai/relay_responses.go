@@ -52,6 +52,7 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		usage.TotalTokens = responsesResponse.Usage.TotalTokens
 		if responsesResponse.Usage.InputTokensDetails != nil {
 			usage.PromptTokensDetails.CachedTokens = responsesResponse.Usage.InputTokensDetails.CachedTokens
+			usage.PromptTokensDetails.CacheWriteTokens = responsesResponse.Usage.InputTokensDetails.CacheWriteTokens
 		}
 	}
 	if info == nil || info.ResponsesUsageInfo == nil || info.ResponsesUsageInfo.BuiltInTools == nil {
@@ -106,6 +107,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 					}
 					if streamResponse.Response.Usage.InputTokensDetails != nil {
 						usage.PromptTokensDetails.CachedTokens = streamResponse.Response.Usage.InputTokensDetails.CachedTokens
+						usage.PromptTokensDetails.CacheWriteTokens = streamResponse.Response.Usage.InputTokensDetails.CacheWriteTokens
 					}
 				}
 				if streamResponse.Response.HasImageGenerationCall() {
@@ -186,5 +188,30 @@ func markResponsesMeaningfulOutput(info *relaycommon.RelayInfo, response *dto.Op
 				return
 			}
 		}
+	}
+}
+
+func markResponsesStreamMeaningfulOutput(info *relaycommon.RelayInfo, event *dto.ResponsesStreamResponse) {
+	if info == nil || event == nil {
+		return
+	}
+	markResponsesMeaningfulOutput(info, event.Response)
+	if strings.TrimSpace(event.Delta) != "" {
+		switch event.Type {
+		case "response.output_text.delta", "response.refusal.delta",
+			"response.reasoning_summary_text.delta", "response.reasoning_text.delta",
+			"response.function_call_arguments.delta":
+			info.MarkMeaningfulOutput()
+			return
+		}
+	}
+	if event.Item == nil {
+		return
+	}
+	if strings.HasSuffix(event.Item.Type, "_call") ||
+		strings.TrimSpace(event.Item.Name) != "" ||
+		strings.TrimSpace(event.Item.CallId) != "" ||
+		strings.TrimSpace(event.Item.ArgumentsString()) != "" {
+		info.MarkMeaningfulOutput()
 	}
 }

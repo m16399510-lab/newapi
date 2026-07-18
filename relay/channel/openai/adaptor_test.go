@@ -16,7 +16,9 @@ func TestConvertOpenAIRequestDropsTopPForClaudeLikeModelWhenTemperatureIsSet(t *
 		TopP:        common.GetPointer(0.9),
 	}
 	info := &relaycommon.RelayInfo{
-		UpstreamModelName: "[aws]claude-opus-4-6",
+		ChannelMeta: &relaycommon.ChannelMeta{
+			UpstreamModelName: "[aws]claude-opus-4-6",
+		},
 	}
 
 	converted, err := (&Adaptor{}).ConvertOpenAIRequest(nil, info, request)
@@ -36,7 +38,9 @@ func TestConvertOpenAIRequestKeepsTopPForNonClaudeModel(t *testing.T) {
 		TopP:        common.GetPointer(0.9),
 	}
 	info := &relaycommon.RelayInfo{
-		UpstreamModelName: "gpt-4o",
+		ChannelMeta: &relaycommon.ChannelMeta{
+			UpstreamModelName: "gpt-4o",
+		},
 	}
 
 	converted, err := (&Adaptor{}).ConvertOpenAIRequest(nil, info, request)
