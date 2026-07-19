@@ -59,3 +59,28 @@ export type PerfSummaryAllData = {
     models: PerfModelSummary[]
   }
 }
+
+export type MonitorMinutePoint = {
+  ts: number
+  success_rate: number | null
+  request_count: number
+}
+
+export type MonitorModel = {
+  model_name: string
+  success_rate: number
+  request_count: number
+  timeline: MonitorMinutePoint[]
+}
+
+export type PerformanceMonitorData = {
+  success: boolean
+  message?: string
+  data: {
+    window_minutes: number
+    window_start: number
+    window_end: number
+    refreshed_at: number
+    models: MonitorModel[]
+  }
+}

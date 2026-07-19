@@ -5178,6 +5178,21 @@
     "Zero retention": "零數據保留",
     "Zhipu": "智譜",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放"
+    "Zoom": "縮放",
+    "Model Monitor": "模型監控",
+    "15-minute model success rate": "15 分鐘模型成功率",
+    "A request counts as successful when it is not recorded as an error.": "請求未被記錄為錯誤時計為成功。",
+    "15-minute window": "15 分鐘視窗",
+    "Last refreshed": "上次重新整理",
+    "Window start": "視窗開始",
+    "Window end": "視窗結束",
+    "Degraded": "狀態下降",
+    "{{count}} requests": "{{count}} 次請求",
+    "15 minutes ago": "15 分鐘前",
+    "Now": "現在",
+    "Minute {{time}}: no requests": "{{time}}：無請求",
+    "Minute {{time}}: {{rate}} success across {{count}} requests": "{{time}}：{{count}} 次請求，成功率 {{rate}}",
+    "No model activity was recorded in the last 15 minutes.": "最近 15 分鐘暫無模型調用記錄。",
+    "Failed to load model monitor data": "載入模型監控資料失敗"
   }
 }

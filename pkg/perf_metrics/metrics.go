@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -12,9 +13,11 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/perf_metrics_setting"
+	"github.com/go-redis/redis/v8"
 )
 
 var hotBuckets sync.Map
+var monitorBuckets sync.Map
 
 // seriesSchema is a stable client cache/schema marker. Do not change it when
 // hiding fields or making response-only privacy hardening changes.
@@ -66,14 +69,147 @@ func Record(sample Sample) {
 		sample.LatencyMs = 0
 	}
 
+	nowTs := time.Now().Unix()
 	key := bucketKey{
 		model:    sample.Model,
 		group:    sample.Group,
-		bucketTs: bucketStart(time.Now().Unix()),
+		bucketTs: bucketStart(nowTs),
 	}
 	actual, _ := hotBuckets.LoadOrStore(key, &atomicBucket{})
 	actual.(*atomicBucket).add(sample)
-	recordRedis(key, sample)
+
+	monitorKey := monitorBucketKey{
+		model:    sample.Model,
+		bucketTs: minuteBucketStart(nowTs),
+	}
+	monitorActual, _ := monitorBuckets.LoadOrStore(monitorKey, &atomicMonitorBucket{})
+	monitorActual.(*atomicMonitorBucket).add(sample.Success)
+	recordRedis(key, monitorKey.bucketTs, sample)
+}
+
+func QueryMonitor(windowMinutes int) MonitorResult {
+	if windowMinutes <= 0 {
+		windowMinutes = 15
+	}
+	if windowMinutes > 60 {
+		windowMinutes = 60
+	}
+
+	nowTs := time.Now().Unix()
+	endBucketTs := minuteBucketStart(nowTs)
+	startBucketTs := endBucketTs - int64(windowMinutes-1)*60
+	buckets, redisLoaded := loadRedisMonitorBuckets(startBucketTs, endBucketTs)
+	if !redisLoaded {
+		buckets = loadLocalMonitorBuckets(startBucketTs, endBucketTs)
+	}
+
+	return buildMonitorResult(buckets, windowMinutes, startBucketTs, nowTs)
+}
+
+func buildMonitorResult(buckets map[string]map[int64]counters, windowMinutes int, startTs int64, nowTs int64) MonitorResult {
+	models := make([]MonitorModel, 0, len(buckets))
+	for modelName, minuteBuckets := range buckets {
+		total := counters{}
+		timeline := make([]MonitorMinutePoint, 0, windowMinutes)
+		for offset := 0; offset < windowMinutes; offset++ {
+			minuteTs := startTs + int64(offset)*60
+			value := minuteBuckets[minuteTs]
+			total.requestCount += value.requestCount
+			total.successCount += value.successCount
+
+			point := MonitorMinutePoint{
+				Ts:           minuteTs,
+				RequestCount: value.requestCount,
+			}
+			if value.requestCount > 0 {
+				rate := math.Round(successRate(value)*100) / 100
+				point.SuccessRate = &rate
+			}
+			timeline = append(timeline, point)
+		}
+		if total.requestCount == 0 {
+			continue
+		}
+		models = append(models, MonitorModel{
+			ModelName:    modelName,
+			SuccessRate:  math.Round(successRate(total)*100) / 100,
+			RequestCount: total.requestCount,
+			Timeline:     timeline,
+		})
+	}
+	sort.Slice(models, func(i, j int) bool {
+		if models[i].SuccessRate != models[j].SuccessRate {
+			return models[i].SuccessRate < models[j].SuccessRate
+		}
+		return models[i].ModelName < models[j].ModelName
+	})
+
+	return MonitorResult{
+		WindowMinutes: windowMinutes,
+		WindowStart:   startTs,
+		WindowEnd:     nowTs,
+		RefreshedAt:   nowTs,
+		Models:        models,
+	}
+}
+
+func loadLocalMonitorBuckets(startTs int64, endTs int64) map[string]map[int64]counters {
+	buckets := map[string]map[int64]counters{}
+	monitorBuckets.Range(func(key, value any) bool {
+		monitorKey := key.(monitorBucketKey)
+		if monitorKey.bucketTs < startTs || monitorKey.bucketTs > endTs {
+			return true
+		}
+		if _, ok := buckets[monitorKey.model]; !ok {
+			buckets[monitorKey.model] = map[int64]counters{}
+		}
+		buckets[monitorKey.model][monitorKey.bucketTs] = value.(*atomicMonitorBucket).snapshot()
+		return true
+	})
+	return buckets
+}
+
+func loadRedisMonitorBuckets(startTs int64, endTs int64) (map[string]map[int64]counters, bool) {
+	if !common.RedisEnabled || common.RDB == nil {
+		return nil, false
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	minuteCount := int((endTs-startTs)/60) + 1
+	requestCommands := make([]*redis.StringStringMapCmd, 0, minuteCount)
+	successCommands := make([]*redis.StringStringMapCmd, 0, minuteCount)
+	pipe := common.RDB.Pipeline()
+	for minuteTs := startTs; minuteTs <= endTs; minuteTs += 60 {
+		requestCommands = append(requestCommands, pipe.HGetAll(ctx, monitorRedisKey("req", minuteTs)))
+		successCommands = append(successCommands, pipe.HGetAll(ctx, monitorRedisKey("ok", minuteTs)))
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, false
+	}
+
+	buckets := map[string]map[int64]counters{}
+	for index, requestCommand := range requestCommands {
+		minuteTs := startTs + int64(index)*60
+		requests := requestCommand.Val()
+		successes := successCommands[index].Val()
+		for modelName, rawCount := range requests {
+			requestCount, _ := strconv.ParseInt(rawCount, 10, 64)
+			if requestCount <= 0 {
+				continue
+			}
+			if _, ok := buckets[modelName]; !ok {
+				buckets[modelName] = map[int64]counters{}
+			}
+			successCount, _ := strconv.ParseInt(successes[modelName], 10, 64)
+			buckets[modelName][minuteTs] = counters{
+				requestCount: requestCount,
+				successCount: successCount,
+			}
+		}
+	}
+	return buckets, true
 }
 
 func Query(params QueryParams) (QueryResult, error) {
@@ -271,6 +407,10 @@ func bucketStart(ts int64) int64 {
 	return ts - (ts % bucketSeconds)
 }
 
+func minuteBucketStart(ts int64) int64 {
+	return ts - (ts % 60)
+}
+
 func mergeCounters(merged map[bucketKey]counters, key bucketKey, value counters) {
 	if value.requestCount == 0 {
 		return
@@ -377,7 +517,7 @@ func avgTps(value counters) float64 {
 	return float64(value.outputTokens) / (float64(value.generationMs) / 1000)
 }
 
-func recordRedis(key bucketKey, sample Sample) {
+func recordRedis(key bucketKey, monitorBucketTs int64, sample Sample) {
 	if !common.RedisEnabled || common.RDB == nil {
 		return
 	}
@@ -402,7 +542,19 @@ func recordRedis(key bucketKey, sample Sample) {
 		pipe.HIncrBy(ctx, redisKey, "gen_ms", sample.GenerationMs)
 	}
 	pipe.Expire(ctx, redisKey, time.Hour)
+	monitorRequestKey := monitorRedisKey("req", monitorBucketTs)
+	monitorSuccessKey := monitorRedisKey("ok", monitorBucketTs)
+	pipe.HIncrBy(ctx, monitorRequestKey, sample.Model, 1)
+	if sample.Success {
+		pipe.HIncrBy(ctx, monitorSuccessKey, sample.Model, 1)
+	}
+	pipe.Expire(ctx, monitorRequestKey, 30*time.Minute)
+	pipe.Expire(ctx, monitorSuccessKey, 30*time.Minute)
 	_, _ = pipe.Exec(ctx)
+}
+
+func monitorRedisKey(counter string, bucketTs int64) string {
+	return fmt.Sprintf("perf:monitor:%s:%d", counter, bucketTs)
 }
 
 func mergeRedisActiveBuckets(merged map[bucketKey]counters, params QueryParams, startTs int64, endTs int64) {

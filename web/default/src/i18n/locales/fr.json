@@ -5261,6 +5261,21 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Model Monitor": "Surveillance des modèles",
+    "15-minute model success rate": "Taux de réussite des modèles sur 15 minutes",
+    "A request counts as successful when it is not recorded as an error.": "Une requête est considérée comme réussie lorsqu'elle n'est pas enregistrée comme une erreur.",
+    "15-minute window": "Fenêtre de 15 minutes",
+    "Last refreshed": "Dernière actualisation",
+    "Window start": "Début de la fenêtre",
+    "Window end": "Fin de la fenêtre",
+    "Degraded": "Dégradé",
+    "{{count}} requests": "{{count}} requêtes",
+    "15 minutes ago": "Il y a 15 minutes",
+    "Now": "Maintenant",
+    "Minute {{time}}: no requests": "Minute {{time}} : aucune requête",
+    "Minute {{time}}: {{rate}} success across {{count}} requests": "Minute {{time}} : {{rate}} de réussite sur {{count}} requêtes",
+    "No model activity was recorded in the last 15 minutes.": "Aucune activité de modèle n'a été enregistrée au cours des 15 dernières minutes.",
+    "Failed to load model monitor data": "Échec du chargement des données de surveillance des modèles"
   }
 }

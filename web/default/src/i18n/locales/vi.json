@@ -5261,6 +5261,21 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Model Monitor": "Giám sát mô hình",
+    "15-minute model success rate": "Tỷ lệ thành công của mô hình trong 15 phút",
+    "A request counts as successful when it is not recorded as an error.": "Một yêu cầu được tính là thành công khi không bị ghi nhận là lỗi.",
+    "15-minute window": "Khung thời gian 15 phút",
+    "Last refreshed": "Lần làm mới gần nhất",
+    "Window start": "Bắt đầu khung",
+    "Window end": "Kết thúc khung",
+    "Degraded": "Suy giảm",
+    "{{count}} requests": "{{count}} yêu cầu",
+    "15 minutes ago": "15 phút trước",
+    "Now": "Hiện tại",
+    "Minute {{time}}: no requests": "Phút {{time}}: không có yêu cầu",
+    "Minute {{time}}: {{rate}} success across {{count}} requests": "Phút {{time}}: tỷ lệ thành công {{rate}} trên {{count}} yêu cầu",
+    "No model activity was recorded in the last 15 minutes.": "Không ghi nhận hoạt động mô hình nào trong 15 phút gần nhất.",
+    "Failed to load model monitor data": "Không thể tải dữ liệu giám sát mô hình"
   }
 }

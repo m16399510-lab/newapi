@@ -35,6 +35,20 @@ func GetPerfMetricsSummary(c *gin.Context) {
 	})
 }
 
+func GetPerfMetricsMonitor(c *gin.Context) {
+	minutes := 15
+	if rawMinutes := c.Query("minutes"); rawMinutes != "" {
+		if parsed, err := strconv.Atoi(rawMinutes); err == nil {
+			minutes = parsed
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    perfmetrics.QueryMonitor(minutes),
+	})
+}
+
 func GetPerfMetrics(c *gin.Context) {
 	modelName := c.Query("model")
 	if modelName == "" {

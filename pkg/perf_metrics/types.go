@@ -60,9 +60,35 @@ type SummaryAllResult struct {
 	Models []ModelSummary `json:"models"`
 }
 
+type MonitorMinutePoint struct {
+	Ts           int64    `json:"ts"`
+	SuccessRate  *float64 `json:"success_rate"`
+	RequestCount int64    `json:"request_count"`
+}
+
+type MonitorModel struct {
+	ModelName    string               `json:"model_name"`
+	SuccessRate  float64              `json:"success_rate"`
+	RequestCount int64                `json:"request_count"`
+	Timeline     []MonitorMinutePoint `json:"timeline"`
+}
+
+type MonitorResult struct {
+	WindowMinutes int            `json:"window_minutes"`
+	WindowStart   int64          `json:"window_start"`
+	WindowEnd     int64          `json:"window_end"`
+	RefreshedAt   int64          `json:"refreshed_at"`
+	Models        []MonitorModel `json:"models"`
+}
+
 type bucketKey struct {
 	model    string
 	group    string
+	bucketTs int64
+}
+
+type monitorBucketKey struct {
+	model    string
 	bucketTs int64
 }
 
@@ -84,6 +110,25 @@ type atomicBucket struct {
 	ttftCount      atomic.Int64
 	outputTokens   atomic.Int64
 	generationMs   atomic.Int64
+}
+
+type atomicMonitorBucket struct {
+	requestCount atomic.Int64
+	successCount atomic.Int64
+}
+
+func (b *atomicMonitorBucket) add(success bool) {
+	b.requestCount.Add(1)
+	if success {
+		b.successCount.Add(1)
+	}
+}
+
+func (b *atomicMonitorBucket) snapshot() counters {
+	return counters{
+		requestCount: b.requestCount.Load(),
+		successCount: b.successCount.Load(),
+	}
 }
 
 func (b *atomicBucket) add(sample Sample) {

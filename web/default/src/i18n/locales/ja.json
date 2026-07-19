@@ -5261,6 +5261,21 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Model Monitor": "モデル監視",
+    "15-minute model success rate": "15分間のモデル成功率",
+    "A request counts as successful when it is not recorded as an error.": "エラーとして記録されなかったリクエストを成功として数えます。",
+    "15-minute window": "15分間",
+    "Last refreshed": "最終更新",
+    "Window start": "期間開始",
+    "Window end": "期間終了",
+    "Degraded": "低下",
+    "{{count}} requests": "{{count}}件のリクエスト",
+    "15 minutes ago": "15分前",
+    "Now": "現在",
+    "Minute {{time}}: no requests": "{{time}}：リクエストなし",
+    "Minute {{time}}: {{rate}} success across {{count}} requests": "{{time}}：{{count}}件中、成功率{{rate}}",
+    "No model activity was recorded in the last 15 minutes.": "過去15分間にモデルの呼び出しは記録されていません。",
+    "Failed to load model monitor data": "モデル監視データの読み込みに失敗しました"
   }
 }

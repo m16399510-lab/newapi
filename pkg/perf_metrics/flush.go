@@ -14,6 +14,7 @@ func flushLoop() {
 	for {
 		interval := perf_metrics_setting.GetFlushIntervalMinutes()
 		time.Sleep(time.Duration(interval) * time.Minute)
+		cleanupMonitorBuckets()
 		setting := perf_metrics_setting.GetSetting()
 		if !setting.Enabled {
 			continue
@@ -21,6 +22,16 @@ func flushLoop() {
 		flushCompletedBuckets()
 		cleanupExpiredMetrics(setting.RetentionDays)
 	}
+}
+
+func cleanupMonitorBuckets() {
+	cutoffTs := minuteBucketStart(time.Now().Add(-time.Hour).Unix())
+	monitorBuckets.Range(func(key, _ any) bool {
+		if key.(monitorBucketKey).bucketTs < cutoffTs {
+			monitorBuckets.Delete(key)
+		}
+		return true
+	})
 }
 
 func flushCompletedBuckets() {

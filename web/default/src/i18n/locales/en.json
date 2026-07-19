@@ -5261,6 +5261,21 @@
     "Zero retention": "Zero retention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Model Monitor": "Model Monitor",
+    "15-minute model success rate": "15-minute model success rate",
+    "A request counts as successful when it is not recorded as an error.": "A request counts as successful when it is not recorded as an error.",
+    "15-minute window": "15-minute window",
+    "Last refreshed": "Last refreshed",
+    "Window start": "Window start",
+    "Window end": "Window end",
+    "Degraded": "Degraded",
+    "{{count}} requests": "{{count}} requests",
+    "15 minutes ago": "15 minutes ago",
+    "Now": "Now",
+    "Minute {{time}}: no requests": "Minute {{time}}: no requests",
+    "Minute {{time}}: {{rate}} success across {{count}} requests": "Minute {{time}}: {{rate}} success across {{count}} requests",
+    "No model activity was recorded in the last 15 minutes.": "No model activity was recorded in the last 15 minutes.",
+    "Failed to load model monitor data": "Failed to load model monitor data"
   }
 }
