@@ -26,6 +26,9 @@ func NormalizeClaudeSamplingParams(request *dto.ClaudeRequest) {
 	if request.Temperature != nil && request.TopP != nil {
 		request.TopP = nil
 	}
+	if request.TopK != nil && helper.ClaudeModelRejectsTopK(request.Model) {
+		request.TopK = nil
+	}
 }
 
 func stopReasonClaude2OpenAI(reason string) string {

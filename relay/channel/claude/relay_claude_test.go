@@ -14,6 +14,49 @@ func commonPointer[T any](value T) *T {
 	return &value
 }
 
+func TestNormalizeClaudeSamplingParams(t *testing.T) {
+	tests := []struct {
+		name        string
+		request     *dto.ClaudeRequest
+		wantTopP    bool
+		wantTopK    bool
+	}{
+		{
+			name: "claude 4 drops top k",
+			request: &dto.ClaudeRequest{
+				Model: "claude-opus-4-6",
+				TopK:  commonPointer(40),
+			},
+			wantTopK: false,
+		},
+		{
+			name: "claude 3 keeps top k",
+			request: &dto.ClaudeRequest{
+				Model: "claude-3-5-sonnet",
+				TopK:  commonPointer(40),
+			},
+			wantTopK: true,
+		},
+		{
+			name: "temperature takes precedence over top p",
+			request: &dto.ClaudeRequest{
+				Model:       "claude-3-5-sonnet",
+				Temperature: commonPointer(0.7),
+				TopP:        commonPointer(0.9),
+			},
+			wantTopP: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			NormalizeClaudeSamplingParams(tt.request)
+			assert.Equal(t, tt.wantTopP, tt.request.TopP != nil)
+			assert.Equal(t, tt.wantTopK, tt.request.TopK != nil)
+		})
+	}
+}
+
 func TestResponseOpenAI2ClaudeToolUseInputIsObject(t *testing.T) {
 	tests := []struct {
 		name string
