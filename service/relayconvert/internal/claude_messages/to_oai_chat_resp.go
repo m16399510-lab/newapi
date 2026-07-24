@@ -25,6 +25,48 @@ func StopReasonClaudeToOpenAI(reason string) string {
 	return reasonmap.ClaudeStopReasonToOpenAIFinishReason(reason)
 }
 
+func claudeTextDelta(delta *dto.ClaudeMediaMessage) *string {
+	if delta == nil {
+		return nil
+	}
+	if delta.Text != nil && *delta.Text != "" {
+		return delta.Text
+	}
+	if delta.Type == "text_delta" && delta.Delta != "" {
+		return common.GetPointer(delta.Delta)
+	}
+	return delta.Text
+}
+
+func claudeThinkingDelta(delta *dto.ClaudeMediaMessage) *string {
+	if delta == nil {
+		return nil
+	}
+	if delta.Thinking != nil && *delta.Thinking != "" {
+		return delta.Thinking
+	}
+	if delta.Type == "thinking_delta" && delta.Delta != "" {
+		return common.GetPointer(delta.Delta)
+	}
+	return delta.Thinking
+}
+
+func claudePartialJSONDelta(delta *dto.ClaudeMediaMessage) string {
+	if delta == nil {
+		return ""
+	}
+	if delta.PartialJson != nil && *delta.PartialJson != "" {
+		return *delta.PartialJson
+	}
+	if delta.Type == "input_json_delta" {
+		return delta.Delta
+	}
+	if delta.PartialJson != nil {
+		return *delta.PartialJson
+	}
+	return ""
+}
+
 func StreamResponseClaude2OpenAI(claudeResponse *dto.ClaudeResponse) *dto.ChatCompletionsStreamResponse {
 	var response dto.ChatCompletionsStreamResponse
 	response.Object = "chat.completion.chunk"
@@ -64,21 +106,21 @@ func StreamResponseClaude2OpenAI(claudeResponse *dto.ClaudeResponse) *dto.ChatCo
 		}
 	} else if claudeResponse.Type == "content_block_delta" {
 		if claudeResponse.Delta != nil {
-			choice.Delta.Content = claudeResponse.Delta.Text
+			choice.Delta.Content = claudeTextDelta(claudeResponse.Delta)
 			switch claudeResponse.Delta.Type {
 			case "input_json_delta":
 				tools = append(tools, dto.ToolCallResponse{
 					Type:  "function",
 					Index: common.GetPointer(fcIdx),
 					Function: dto.FunctionResponse{
-						Arguments: *claudeResponse.Delta.PartialJson,
+						Arguments: claudePartialJSONDelta(claudeResponse.Delta),
 					},
 				})
 			case "signature_delta":
 				signatureContent := "\n"
 				choice.Delta.ReasoningContent = &signatureContent
 			case "thinking_delta":
-				choice.Delta.ReasoningContent = claudeResponse.Delta.Thinking
+				choice.Delta.ReasoningContent = claudeThinkingDelta(claudeResponse.Delta)
 			}
 		}
 	} else if claudeResponse.Type == "message_delta" {
@@ -354,11 +396,11 @@ func FormatClaudeResponseInfo(claudeResponse *dto.ClaudeResponse, oaiResponse *d
 		}
 	} else if claudeResponse.Type == "content_block_delta" {
 		if claudeResponse.Delta != nil {
-			if claudeResponse.Delta.Text != nil {
-				claudeInfo.ResponseText.WriteString(*claudeResponse.Delta.Text)
+			if text := claudeTextDelta(claudeResponse.Delta); text != nil {
+				claudeInfo.ResponseText.WriteString(*text)
 			}
-			if claudeResponse.Delta.Thinking != nil {
-				claudeInfo.ResponseText.WriteString(*claudeResponse.Delta.Thinking)
+			if thinking := claudeThinkingDelta(claudeResponse.Delta); thinking != nil {
+				claudeInfo.ResponseText.WriteString(*thinking)
 			}
 		}
 	} else if claudeResponse.Type == "message_delta" {
